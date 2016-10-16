@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<style>
+    body { margin: 0; }
+    canvas { width: 100%; height: 100% }
+</style>
+<body>
+
+<script src="js/three.js"></script>
+<script>
+    var scene = new THREE.Scene();
+
+    var VIEW_ANGLE = window.innerWidth / -2,
+            NEAR = 0.1,
+            FAR = 1000;
+
+    var camera = new THREE.OrthographicCamera(  VIEW_ANGLE,
+            window.innerWidth / 2,
+            window.innerHeight / 2,
+            window.innerHeight / -2,
+            NEAR,
+            FAR);
+
+    // pull the camera position back
+    camera.position.z = 300;
+
+    var renderer = new THREE.WebGLRenderer();
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    document.body.appendChild( renderer.domElement );
+
+    // Create the particle variables
+    var particleCount = 1000;
+    var particles = new THREE.Geometry();
+    var particle_Material = new THREE.PointsMaterial({
+        color: 'red',
+        size: 1
+    });
+
+    var min = -10,
+            max = 10;
+
+    // Create the individual particles
+    for (var i = 0; i < particleCount; i++) {
+
+        var radius = 200;
+
+        var random = Math.random();
+        var variance = Math.random();
+
+        var max = 10,
+                min = -10;
+
+        radius += (Math.floor(variance * (max - min + 1)) + min);
+
+        var pX = radius * Math.cos(random * (2 * Math.PI)),
+                pY = radius * Math.sin(random * (2 * Math.PI)),
+                pZ = Math.random() * 100;
+
+
+
+        var particle = new THREE.Vector3(
+                pX,pY,pZ
+        );
+
+        particle.velocity = new THREE.Vector3(
+                0,
+                -Math.random(),
+                0
+        );
+
+// Add the particle to the geometry
+        particles.vertices.push(particle);
+    }
+
+    // Create the particle system
+    var particleSystem = new THREE.Points(
+            particles,particle_Material
+    );
+
+    particleSystem.sortParticles = true;
+
+    // Add the particle system to the scene
+    scene.add(particleSystem);
+
+    var lastTime = 0;
+    function animate() {
+        var timeNow = new Date().getTime();
+        if (lastTime != 0) {
+            var elapsed = timeNow - lastTime;
+            var pCount = particleCount;
+            while(pCount--) {
+                // Get particle
+                var particle = particles.vertices[pCount];
+                //console.log(particle);
+                particle.y -= Math.random() * elapsed * 10.0 / 1000.0;
+                //console.log(particle);
+            }
+        }
+        lastTime = timeNow;
+    }
+
+    // Animation Loop
+    function render() {
+        requestAnimationFrame(render);
+        animate();
+        renderer.render(scene,camera);
+    }
+    render();
+</script>
+
+</body>
+</html>

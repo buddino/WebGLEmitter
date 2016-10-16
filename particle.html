@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ParticleSystem 0.1a</title>
+</head>
+<script src='js/DAT.GUI.js'></script>
+<script>
+    var params = {
+        drops: 0
+    };
+    function loadGUI(){
+        console.info("Loaded");
+        var gui = new DAT.GUI({
+            height: 1 * 32 - 1
+        });
+
+        gui.add(params, 'drops').listen();
+    }
+</script>
+<script src="js/three.js"></script>
+<script src="js/util.js"></script>
+<script src="js/particle.js"></script>
+
+<style>
+    * {
+        margin:0;
+    }
+</style>
+<body onload="start()">
+</body>
+</html>
