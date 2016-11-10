@@ -3,7 +3,7 @@ var size = 5,
     attr = 0.01,
     velFactor = 2,
     pressure = 0.5,
-    particleCount = 10000,
+    particleCount = 1000,
     cloudsCount = 100;
 
 var xSpread = 0.001;
@@ -22,6 +22,7 @@ var camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 10000);
 var scene = new THREE.Scene();
 var clock = new THREE.Clock();
 var texLoader = new THREE.TextureLoader();
+var simplex = new SimplexNoise();
 
 var orbitControls = new THREE.OrbitControls(camera);
 orbitControls.autoRotate = true;
@@ -31,8 +32,11 @@ var floorTexture = texLoader.load("img/water.jpg");
 floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
 floorTexture.repeat.set( 10, 10 );
 var floorMaterial = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide, blending: THREE.NormalBlending, transparent: false, depthTest: true } );
-var floorGeometry = new THREE.PlaneGeometry(1000, 1000, 10, 10);
+var planeWidth = 1000;
+var WIDTH = 32;
+var floorGeometry = new THREE.PlaneGeometry(planeWidth, planeWidth, WIDTH, WIDTH);
 var floor = new THREE.Mesh(floorGeometry, floorMaterial);
+floor.material.wireframe = true;
 floor.position.y = -52;
 floor.rotation.x = Math.PI / 2;
 scene.add(floor);
@@ -67,6 +71,7 @@ for (var i = 0; i < particleCount; i++) {
 
 var particleSystem = new THREE.Points(particles, pMaterial);
 particleSystem.geometry.dynamic = true;
+floor.geometry.dynamic = true;
 scene.add(particleSystem);
 render();
 
@@ -92,7 +97,23 @@ function render() {
         //}
     }
 
+
+    /// Noise
+
+
+
+
+
+
+
+
+
+
+
+    ///
+
     particleSystem.geometry.verticesNeedUpdate = true;
+    floor.geometry.verticesNeedUpdate = true;
     requestAnimationFrame(render);
     renderer.render(scene, camera);
 }
