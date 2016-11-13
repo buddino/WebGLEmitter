@@ -12,19 +12,23 @@
         pressure: 1,
         xSpread: 0.001,
         ySpread: 0.001,
-        zSpread: 0.001
+        zSpread: 0.001,
+        opacity: 0.05
     };
+
     function loadGUI(){
         console.info("Loaded");
         var gui = new DAT.GUI({
             height: (Object.keys(params).length-1) * 32 - 1
         });
-        var gravityCtrl = gui.add(params, 'gravity',0.01,2,0.01);
+        var gravityCtrl = gui.add(params, 'gravity',0.01,3,0.01);
         var attrCtrl = gui.add(params, 'attr',0,0.1,0.001);
         var pressureCtrl = gui.add(params, 'pressure',0,2,0.01);
-        var xSpreadCtrl = gui.add(params, 'xSpread',0,0.1,0.001);
-        var ySpreadCtrl = gui.add(params, 'ySpread',0,0.1,0.001);
-        var zSpreadCtrl = gui.add(params, 'zSpread',0,0.1,0.001);
+        var xSpreadCtrl = gui.add(params, 'xSpread',0,0.03,0.001);
+        var ySpreadCtrl = gui.add(params, 'ySpread',0,0.03,0.001);
+        var zSpreadCtrl = gui.add(params, 'zSpread',0,0.03,0.001);
+        var opacityCtrl = gui.add(params, 'opacity',0,0.3,0.0001);
+
 
         gravityCtrl.onChange(function(value) {
             gravity = value;
@@ -33,7 +37,6 @@
         attrCtrl.onChange(function(value) {
             attr = value;
         });
-
 
         pressureCtrl.onChange(function(value) {
             pressure = value;
@@ -51,10 +54,17 @@
             zSpread = value;
         })
 
+        opacityCtrl.onChange(function(value){
+            opacity = value;
+        })
+
+
 
     }
 </script>
 <script src="js/three.js"></script>
+<script src="js/Mirror.js"></script>
+<script src="js/WaterShader.js"></script>
 <script src="js/orbit.js"></script>
 <script src="js/util.js"></script>
 <script src="js/SimplexNoise.js"></script>

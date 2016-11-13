@@ -4,26 +4,26 @@
     <meta charset="UTF-8">
     <title>Plane Test</title>
 </head>
+
 <script src="js/three.js"></script>
 <script src="js/Mirror.js"></script>
-<script src="js/WaterShader.js"></script>
+<script src="js/WaterShaderNoSimplex.js"></script>
 <script src="js/util.js"></script>
 <script src="js/orbit.js"></script>
 <script src="js/SimplexNoise.js"></script>
 <script>
     var planeWidth = 5000;
-    var WIDTH = 64;
+    var WIDTH = 32;
     var baseHeight = 20;
-    var speed = 64;
-    var xMove = 8;
-    var yMove = 8;
-    var factor = 100;
+    var speed = 256;
+    var xMove = 128;
+    var yMove = 128;
+    var factor = 64;
     var waving = true;
     var noiseAnimation = true;
 
     var width = window.innerWidth, height = window.innerHeight - 4;
     var renderer = new THREE.WebGLRenderer();
-    renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     var camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.5, 300000);
     camera.position.set(2000, 750, 2000);
@@ -36,37 +36,23 @@
 
 
 
+
+
     var simplex = new SimplexNoise();
     renderer.setSize(width, height);
     var t = 0;
 
 
-    scene.add(new THREE.AmbientLight(0x444444));
+    //scene.add(new THREE.AmbientLight(0x444444));
     var light = new THREE.DirectionalLight(0xffffbb, 1);
     light.position.set(-1, 1, -1);
     scene.add(light);
 
 
-    var refraction = getCubeMap('img/1876a.jpg');
+    var refraction = getCubeMap('img/1876a.jpg',512);
     var skyBoxMaterial = getSkyBoxMaterial(refraction);
     refraction.mapping = THREE.CubeRefractionMapping;
     refraction.format = THREE.RGBFormat;
-
-    var refractionMaterial = new THREE.MeshPhongMaterial({
-        color: 0xffffff,
-        envMap: refraction,
-        refractionRatio: 0.50,
-        reflectivity: 1.0,
-        specular: 0x90E7F1,
-        combine: THREE.MixOperation
-    });
-
-
-    var geometry = new THREE.SphereGeometry(500,100,100);
-    var sphere = new THREE.Mesh(geometry, refractionMaterial);
-    sphere.position.y = 500;
-    scene.add(sphere);
-
 
 
     var waterNormals = new THREE.TextureLoader().load('img/waternormals.jpg');
@@ -79,25 +65,51 @@
         sunDirection: light.position.clone().normalize(),
         sunColor: 0xffffaa,
         waterColor: 0x94D9F1,
-        distortionScale: 50.0
+        distortionScale: 0.0
+    });
+
+    var refractionMaterial = new THREE.MeshPhongMaterial({
+        color: 0xffffff,
+        envMap: refraction,
+        refractionRatio: 0.95,
+        normalMap: waterNormals,
+        reflectivity: 1,
+        specular: 0x90E7F1,
+        combine: THREE.MixOperation
     });
 
 
-    var waterGeometry = new THREE.PlaneGeometry(planeWidth, planeWidth, WIDTH, WIDTH);
+
+
+
+    var cube = new THREE.BoxGeometry(500,500,500,5,5,5);
+    var cubeMesh = new THREE.Mesh(cube,refractionMaterial);
+    var waterGeometry = new THREE.PlaneGeometry(10000, 10000, WIDTH, WIDTH);
     waterShader.material.side = THREE.DoubleSide;
     var water = new THREE.Mesh(waterGeometry, refractionMaterial);
     water.add(waterShader);
     water.geometry.dynamic = true;
     water.rotation.x = -Math.PI * 0.5;
-    //scene.add(water);
+    scene.add(water);
 
+    var material = new THREE.MeshPhongMaterial({color: 0x3B970B, reflectivity:0.75})
+
+    //Tube
+    var path = new THREE.CatmullRomCurve3( [
+        new THREE.Vector3( 0, -1000, -800 ),
+        new THREE.Vector3( 0, 50, -200 ),
+        new THREE.Vector3( 0, 100, -100 ),
+        new THREE.Vector3( 0, 210, -1 )
+    ] );
+    var tube = new THREE.Mesh(new THREE.TubeGeometry(path,20,20,10,false), material);
+    scene.add(tube);
 
     var skyBox = new THREE.Mesh(
             new THREE.BoxGeometry(10000, 10000, 10000),
             skyBoxMaterial
     );
     scene.add(skyBox);
-
+    cubeMesh.dynamic = true;
 
     render();
     function render() {
@@ -106,14 +118,18 @@
             var L = WIDTH + 1;
             for (var x = 0; x < WIDTH + 1; x++) {
                 for (var y = 0; y < WIDTH + 1; y++) {
-                    var smooth = simplex.noise3d(x / xMove, y / yMove, t / speed) * 0.5 + 0.5;
-                    //var noise = simplex.noise3d(x / 4, y / 4, t/(speed/2)) * 0.5 + 0.5;
-                    V[x + y * L].z = smooth * factor;
+                    //var smooth = simplex.noise3d(x / xMove, y / yMove, t / speed) * 0.5 + 0.5;
+                    var noise = simplex.noise3d(x / 4, y / 4, t / (speed / 2)) * 0.5 + 0.5;
+                    V[x+y*L].z = noise * factor;
                 }
             }
             t++;
+
+            //water.geometry.computeFaceNormals();
+            //water.geometry.computeVertexNormals();
             water.geometry.verticesNeedUpdate = true;
-            water.geometry.normalsNeedUpdate = true;
+            //water.geometry.normalsNeedUpdate = true;
+
         }
         requestAnimationFrame(render);
         renderer.render(scene, camera);
@@ -125,13 +141,12 @@
         document.body.appendChild(renderer.domElement);
     }
 
-    function getCubeMap(imageFile) {
+    function getCubeMap(imageFile,size) {
         var cubeMap = new THREE.CubeTexture([]);
         cubeMap.format = THREE.RGBFormat;
         var loader = new THREE.ImageLoader();
         loader.load(imageFile, function (image) {
             var getSide = function (x, y) {
-                var size = 512;
                 var canvas = document.createElement('canvas');
                 canvas.width = size;
                 canvas.height = size;
