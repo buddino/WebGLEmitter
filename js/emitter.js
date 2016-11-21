@@ -6,21 +6,20 @@ var size = 10,
     particleCount = 3000,
     cloudsCount = 100;
 
-var planeWidth = 5000;
+var BOUNDS = 5000;
 var WIDTH = 128;
 var systemDistance = 100;
 var noiseAnimation = true;
 var simplex = new SimplexNoise();
-
-
-
+var mouseMoved = false;
+var mouseCoords = new THREE.Vector2();
+var raycaster = new THREE.Raycaster();
 var xSpread = 0.001;
 var ySpread = 0.001;
 var zSpread = 0.001;
 
 var width = window.innerWidth,
     height = window.innerHeight - 4;
-var box = {x: 30, y: 10, z: 10};
 var center = new THREE.Vector3(0, 0, 0);
 var acc = new THREE.Vector3(0, -0.981, 0);
 
@@ -34,12 +33,12 @@ var texLoader = new THREE.TextureLoader();
 var orbitControls = new THREE.OrbitControls(camera);
 orbitControls.autoRotate = true;
 
-
 scene.add(new THREE.AmbientLight(0x444444));
 var light = new THREE.DirectionalLight(0xffffbb, 1);
 light.position.set(-4000, 3200, -5000);
 scene.add(light);
 
+//Water Material
 var waterNormals = new THREE.TextureLoader().load('img/waternormals.jpg');
 waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping;
 var waterShader = new THREE.Water(renderer, camera, scene, {
@@ -54,7 +53,8 @@ var waterShader = new THREE.Water(renderer, camera, scene, {
     distortionScale: 10.0
 });
 
-var waterGeometry = new THREE.PlaneGeometry(planeWidth, planeWidth, WIDTH, WIDTH);
+//Water geometry
+var waterGeometry = new THREE.PlaneGeometry(BOUNDS, BOUNDS, WIDTH, WIDTH);
 waterShader.material.side = THREE.DoubleSide;
 var water = new THREE.Mesh(waterGeometry, waterShader.material);
 water.add(waterShader);
@@ -62,9 +62,25 @@ water.rotation.x = -Math.PI * 0.5;
 water.position.y = 0;
 scene.add(water);
 
+//Heightmap
+gpuCompute = new GPUComputationRenderer(BOUNDS, BOUNDS, renderer);
+var heightmapTexture = gpuCompute.createTexture();
+var heightmapVariable = gpuCompute.addVariable("heightmap", document.getElementById('heightmapFragmentShader').textContent, heightmapTexture);
+gpuCompute.setVariableDependencies(heightmapVariable, [heightmapVariable]);
+heightmapVariable.material.uniforms.mousePos = {value: new THREE.Vector2(BOUNDS, BOUNDS)};
+heightmapVariable.material.uniforms.mouseSize = {value: 20.0};
+heightmapVariable.material.uniforms.viscosityConstant = {value: 0.03};
+heightmapVariable.material.defines.BOUNDS = BOUNDS.toFixed(1);
+var error = gpuCompute.init();
+if (error !== null) {
+    console.error(error);
+}
+
+
+//CubeMap
 var skyBoxMaterial = getSkyBoxMaterial('img/skyboxsun25degtest.jpg', 1024);
 var skyBox = new THREE.Mesh(
-    new THREE.BoxGeometry(planeWidth+1000, planeWidth+1000, planeWidth+1000),
+    new THREE.BoxGeometry(BOUNDS+1000, BOUNDS+1000, BOUNDS+1000),
     skyBoxMaterial
 );
 scene.add(skyBox);
@@ -122,7 +138,7 @@ render();
 function render() {
     var delta = clock.getDelta();
     var elapsed = clock.getElapsedTime();
-    params.fps = 1 / delta;
+    //Update particles
     for (var i = 0; i < particleCount; i++) {
         var particle = particles.vertices[i];
             if (elapsed - particle.birth > particle.waitTime) {
@@ -146,15 +162,33 @@ function render() {
                 //particle.speed.y -= particle.speed.y*attr+Math.random()/100-0.005;
                 particle.add(particle.speed);
             }
-
+    }
+    particleSystem.geometry.verticesNeedUpdate = true;
+    //Ripples
+    var uniforms = heightmapVariable.material.uniforms;
+    if (mouseMoved) {
+        raycaster.setFromCamera(mouseCoords, camera);
+        var intersects = raycaster.intersectObject(water);
+        if (intersects.length > 0) {
+            var point = intersects[0].point;
+            uniforms.mousePos.value.set(point.x, point.z);
+        }
+        else {
+            uniforms.mousePos.value.set(10000, 10000);
+        }
+        mouseMoved = false;
+    }
+    else {
+        uniforms.mousePos.value.set(10000, 10000);
     }
 
-    particleSystem.geometry.verticesNeedUpdate = true;
+    gpuCompute.compute();
+    water.material.uniforms.ripplesMap.value =  gpuCompute.getCurrentRenderTarget( heightmapVariable ).texture;
+
+
+
     if(noiseAnimation)
         waterShader.material.uniforms.time.value += 1.0 / 60.0;
-
-
-
     waterShader.render();
     requestAnimationFrame(render);
     renderer.render(scene, camera);
@@ -206,6 +240,16 @@ function getSkyBoxMaterial(imageFile, size) {
         side: THREE.BackSide
     });
     return skyBoxMaterial;
+}
+
+//Bindings
+document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+function setMouseCoords(x, y) {
+    mouseCoords.set(( x / renderer.domElement.clientWidth ) * 2 - 1, -( y / renderer.domElement.clientHeight ) * 2 + 1);
+    mouseMoved = true;
+}
+function onDocumentMouseMove(event) {
+    setMouseCoords(event.clientX, event.clientY);
 }
 
 

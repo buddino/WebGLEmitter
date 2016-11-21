@@ -18,6 +18,7 @@ THREE.ShaderLib[ 'water' ] = {
 			"distortionScale":  { value: 20.0 },
 			"noiseScale":       { value: 1.0 },
 			"textureMatrix" :   { value: new THREE.Matrix4() },
+			"ripplesMap" :		{ value: null },
 			"sunColor":         { value: new THREE.Color( 0x7F7F7F ) },
 			"sunDirection":     { value: new THREE.Vector3( 0.70707, 0.70707, 0 ) },
 			"eye":              { value: new THREE.Vector3() },
@@ -28,12 +29,13 @@ THREE.ShaderLib[ 'water' ] = {
 	vertexShader:  [
 		'uniform mat4 textureMatrix;',
 		'uniform float time;',
-
+		'uniform sampler2D ripplesMap;',
 		'varying vec4 mirrorCoord;',
 		'varying vec3 worldPosition;',
 		'void main()',
 		'{',
-		'	mirrorCoord = modelMatrix * vec4( position.x, position.y, position.z, 1.0 );',
+		'	vec4 heights = texture2D(ripplesMap, uv);',
+		'	mirrorCoord = modelMatrix * vec4( position.x, position.y, position.z+1.0*heights.x, 1.0 );',
 		'	worldPosition = mirrorCoord.xyz;',
 		'	mirrorCoord = textureMatrix * mirrorCoord;',
 		'	gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );',
@@ -100,7 +102,7 @@ THREE.ShaderLib[ 'water' ] = {
 		'	vec3 scatter = max( 0.0, dot( surfaceNormal, eyeDirection ) ) * waterColor;',
 		'	vec3 albedo = mix( sunColor * diffuseLight * 0.3 + scatter, ( vec3( 0.1 ) + reflectionSample * 0.9 + reflectionSample * specularLight ), reflectance );',
 		'	vec3 outgoingLight = albedo;',
-			THREE.ShaderChunk[ "fog_fragment" ],
+			//THREE.ShaderChunk[ "fog_fragment" ],
 		'	gl_FragColor = vec4( outgoingLight, alpha );',
 		'}'
 	].join( '\n' )
@@ -127,6 +129,7 @@ THREE.Water = function ( renderer, camera, scene, options ) {
 	this.clipBias = optionalParameter( options.clipBias, 0.0 );
 	this.alpha = optionalParameter( options.alpha, 1.0 );
 	this.time = optionalParameter( options.time, 0.0 );
+	this.rippleMap = optionalParameter( options.rippleMap, null );
 	this.normalSampler = optionalParameter( options.waterNormals, null );
 	this.sunDirection = optionalParameter( options.sunDirection, new THREE.Vector3( 0.70707, 0.70707, 0.0 ) );
 	this.sunColor = new THREE.Color( optionalParameter( options.sunColor, 0xffffff ) );
@@ -185,6 +188,7 @@ THREE.Water = function ( renderer, camera, scene, options ) {
 	this.material.uniforms.waterColor.value = this.waterColor;
 	this.material.uniforms.sunDirection.value = this.sunDirection;
 	this.material.uniforms.distortionScale.value = this.distortionScale;
+	this.material.uniforms.ripplesMap.value = this.ripplesMap;
 
 	this.material.uniforms.eye.value = this.eye;
 

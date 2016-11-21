@@ -6,13 +6,135 @@
 </head>
 <script src="js/three.js"></script>
 <script src="js/Mirror.js"></script>
-<script src="js/WaterShader.js"></script>
+<script src="js/WaterShaderNoSimplex.js"></script>
 <script src="js/util.js"></script>
 <script src="js/orbit.js"></script>
 <script src="js/SimplexNoise.js"></script>
+<script src="js/GPUComputationRenderer.js"></script>
+<script id="waterVertexShader" type="x-shader/x-vertex">
+			uniform sampler2D heightmap;
+			#define PHONG
+			varying vec3 vViewPosition;
+			#ifndef FLAT_SHADED
+				varying vec3 vNormal;
+			#endif
+
+			#include <common>
+			#include <uv_pars_vertex>
+			#include <uv2_pars_vertex>
+			#include <displacementmap_pars_vertex>
+			#include <envmap_pars_vertex>
+			#include <color_pars_vertex>
+			#include <morphtarget_pars_vertex>
+			#include <skinning_pars_vertex>
+			#include <shadowmap_pars_vertex>
+			#include <logdepthbuf_pars_vertex>
+			#include <clipping_planes_pars_vertex>
+
+			void main() {
+
+				vec2 cellSize = vec2( 1.0 / WIDTH, 1.0 / WIDTH );
+
+				#include <uv_vertex>
+				#include <uv2_vertex>
+				#include <color_vertex>
+
+				// # include <beginnormal_vertex>
+				// Compute normal from heightmap
+				vec3 objectNormal = vec3(
+					( texture2D( heightmap, uv + vec2( - cellSize.x, 0 ) ).x - texture2D( heightmap, uv + vec2( cellSize.x, 0 ) ).x ) * WIDTH / BOUNDS,
+					( texture2D( heightmap, uv + vec2( 0, - cellSize.y ) ).x - texture2D( heightmap, uv + vec2( 0, cellSize.y ) ).x ) * WIDTH / BOUNDS,
+					1.0 );
+				//<beginnormal_vertex>
+
+				#include <morphnormal_vertex>
+				#include <skinbase_vertex>
+				#include <skinnormal_vertex>
+				#include <defaultnormal_vertex>
+
+			#ifndef FLAT_SHADED // Normal computed with derivatives when FLAT_SHADED
+
+				vNormal = normalize( transformedNormal );
+
+			#endif
+
+				//# include <begin_vertex>
+				float heightValue = texture2D( heightmap, uv ).x;
+				vec3 transformed = vec3( position.x, position.y, heightValue );
+				//<begin_vertex>
+
+				#include <displacementmap_vertex>
+				#include <morphtarget_vertex>
+				#include <skinning_vertex>
+				#include <project_vertex>
+				#include <logdepthbuf_vertex>
+				#include <clipping_planes_vertex>
+
+				vViewPosition = - mvPosition.xyz;
+
+				#include <worldpos_vertex>
+				#include <envmap_vertex>
+				#include <shadowmap_vertex>
+
+			}
+
+		</script>
+<script id="smoothFragmentShader" type="x-shader/x-fragment">
+
+			uniform sampler2D texture;
+			void main()	{
+
+				vec2 cellSize = 1.0 / resolution.xy;
+				vec2 uv = gl_FragCoord.xy * cellSize;
+				// Computes the mean of texel and 4 neighbours
+				vec4 textureValue = texture2D( texture, uv );
+				textureValue += texture2D( texture, uv + vec2( 0.0, cellSize.y ) );
+				textureValue += texture2D( texture, uv + vec2( 0.0, - cellSize.y ) );
+				textureValue += texture2D( texture, uv + vec2( cellSize.x, 0.0 ) );
+				textureValue += texture2D( texture, uv + vec2( - cellSize.x, 0.0 ) );
+
+				textureValue /= 5.0;
+
+				gl_FragColor = textureValue;
+
+			}
+</script>
+<script id="heightmapFragmentShader" type="x-shader/x-fragment">
+			#include <common>
+			uniform vec2 mousePos;
+			float mouseSize = 15.0;
+			uniform float viscosityConstant;
+            float noise = 5.0;
+			#define deltaTime ( 1.0 / 60.0 )
+			#define GRAVITY_CONSTANT ( resolution.x * deltaTime * 10.0 )
+			void main()	{
+				vec2 cellSize = 1.0 / resolution.xy;
+				vec2 uv = gl_FragCoord.xy * cellSize;
+				vec4 heightmapValue = texture2D( heightmap, uv );
+				vec4 north = texture2D( heightmap, uv + vec2( 0.0, cellSize.y ) );
+				vec4 south = texture2D( heightmap, uv + vec2( 0.0, - cellSize.y ) );
+				vec4 east = texture2D( heightmap, uv + vec2( cellSize.x, 0.0 ) );
+				vec4 west = texture2D( heightmap, uv + vec2( - cellSize.x, 0.0 ) );
+				float sump = north.x + south.x + east.x + west.x - 4.0 * heightmapValue.x;
+				float accel = sump * GRAVITY_CONSTANT;
+				heightmapValue.y += accel;
+				heightmapValue.x += heightmapValue.y * deltaTime;
+				heightmapValue.x += sump * viscosityConstant;
+				// Mouse influence
+				float mousePhase = clamp( length( ( uv - vec2( 0.5 ) ) * BOUNDS - vec2( mousePos.x, - mousePos.y ) ) * PI / mouseSize, 0.0, PI );
+				heightmapValue.x += noise*cos( mousePhase ) + noise;
+				gl_FragColor = heightmapValue;
+			}
+</script>
+
 <script>
-    var planeWidth = 10000;
-    var WIDTH = 16;
+    var gpuCompute;
+    var heightmapVariable;
+    var mouseMoved = false;
+    var mouseCoords = new THREE.Vector2();
+    var raycaster = new THREE.Raycaster();
+    var BOUNDS = 1000;
+    var WIDTH = 32;
     var baseHeight = 10;
     var speed = 256;
     var xMove = 8;
@@ -20,7 +142,8 @@
     var factor = 20;
     var waving = false;
     var noiseAnimation = true;
-
+    var output;
+    var simplex = new SimplexNoise();
     var width = window.innerWidth, height = window.innerHeight - 4;
     var renderer = new THREE.WebGLRenderer();
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -28,6 +151,36 @@
     camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.5, 300000);
     camera.position.set(656, 124, 739);
     camera.rotation.set(-0.1, -0.7, 0.1);
+
+    document.addEventListener( 'keydown', function( event ) {
+
+        // W Pressed: Toggle wireframe
+        if ( event.keyCode === 87 ) {
+
+            water.material.wireframe = ! water.material.wireframe;
+            water.material.needsUpdate = true;
+
+        }
+
+    } , false );
+
+
+    gpuCompute = new GPUComputationRenderer(32, 32, renderer);
+    var heightmap0 = gpuCompute.createTexture();
+    fillTexture(heightmap0,0);
+    heightmapVariable = gpuCompute.addVariable("heightmap", document.getElementById('heightmapFragmentShader').textContent, heightmap0);
+    gpuCompute.setVariableDependencies(heightmapVariable, [heightmapVariable]);
+    heightmapVariable.material.uniforms.mousePos = {value: new THREE.Vector2(10000, 10000)};
+    heightmapVariable.material.uniforms.mouseSize = {value: 20.0};
+    heightmapVariable.material.uniforms.viscosityConstant = {value: 0.03};
+    heightmapVariable.material.defines.BOUNDS = BOUNDS.toFixed(1);
+
+    var error = gpuCompute.init();
+    if (error !== null) {
+        console.error(error);
+    }
+
+
 
     var scene = new THREE.Scene();
     var clock = new THREE.Clock();
@@ -39,6 +192,46 @@
     renderer.setSize(width, height);
     var t = 0;
 
+
+//    // material: make a ShaderMaterial clone of MeshPhongMaterial, with customized vertex shader
+//    var material = new THREE.ShaderMaterial({
+//        uniforms: THREE.UniformsUtils.merge([
+//            THREE.ShaderLib['phong'].uniforms,
+//            {
+//                heightmap: {value: null}
+//            }
+//        ]),
+//        vertexShader: document.getElementById('waterVertexShader').textContent,
+//        fragmentShader: THREE.ShaderChunk['meshphong_frag']
+//    });
+//
+//    material.lights = true;
+//
+//    // Material attributes from MeshPhongMaterial
+//    material.color = new THREE.Color(0x0040c0);
+//    material.specular = new THREE.Color(0x111111);
+//    material.shininess = 50;
+//    // Sets the uniforms with the material values
+//    material.uniforms.diffuse.value = material.color;
+//    material.uniforms.specular.value = material.specular;
+//    material.uniforms.shininess.value = Math.max(material.shininess, 1e-4);
+//    material.uniforms.opacity.value = material.opacity;
+//    material.defines.WIDTH = WIDTH.toFixed(1);
+//    material.defines.BOUNDS = BOUNDS.toFixed(1);
+//    material.side = THREE.DoubleSide;
+//
+//    waterUniforms = material.uniforms;
+//    var plane2G = new THREE.PlaneGeometry(BOUNDS, BOUNDS, WIDTH-1, WIDTH-1);
+//    var plane2 = new THREE.Mesh(plane2G, material);
+//    plane2.position.x = BOUNDS/2;
+//    plane2.rotateX(-Math.PI/2)
+//    scene.add(plane2);
+
+    var spG = new THREE.SphereGeometry(10,10,10);
+    var spM = new THREE.MeshPhongMaterial({color:0xff0000});
+    var sphere = new THREE.Mesh(spG,spM);
+    sphere.position.y = 10;
+    scene.add(sphere);
 
     scene.add(new THREE.AmbientLight(0x444444));
     var light = new THREE.DirectionalLight(0xffffbb, 1);
@@ -59,43 +252,58 @@
         distortionScale: 10.0
     });
 
-    var waterGeometry = new THREE.PlaneGeometry(planeWidth, planeWidth, WIDTH, WIDTH);
+    var waterGeometry = new THREE.PlaneGeometry(BOUNDS, BOUNDS, WIDTH-1, WIDTH-1);
     waterShader.material.side = THREE.DoubleSide;
     //waterShader.material.refractionRatio = 0.5;
     var water = new THREE.Mesh(waterGeometry, waterShader.material);
-    water.add(waterShader);
-    water.rotation.x = -Math.PI * 0.5;
-    water.position.y = 0;
-    scene.add(water);
+    water.rotateX(-Math.PI/2)
 
+    water.add(waterShader);
+    scene.add(water);
 
 
     var skyBoxMaterial = getSkyBoxMaterial('img/skyboxsun25degtest.png', 1024);
     var skyBox = new THREE.Mesh(
-            new THREE.BoxGeometry(planeWidth+1000, planeWidth+1000, planeWidth+1000),
+            new THREE.BoxGeometry(BOUNDS + 1000, BOUNDS + 1000, BOUNDS + 1000),
             skyBoxMaterial
     );
     scene.add(skyBox);
 
+    document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+
+    function setMouseCoords(x, y) {
+        mouseCoords.set(( x / renderer.domElement.clientWidth ) * 2 - 1, -( y / renderer.domElement.clientHeight ) * 2 + 1);
+        mouseMoved = true;
+    }
+    function onDocumentMouseMove(event) {
+        setMouseCoords(event.clientX, event.clientY);
+    }
 
     render();
     function render() {
-        /*
-        if (waving) {
-            var V = water.geometry.vertices;
-            var L = WIDTH + 1;
-            for (var x = 0; x < WIDTH + 1; x++) {
-                for (var y = 0; y < WIDTH + 1; y++) {
-                    var smooth = simplex.noise3d(x / xMove, y / yMove, t / speed) * 0.5 + 0.5;
-                    //var noise = simplex.noise3d(x / 4, y / 4, t/(speed/2)) * 0.5 + 0.5;
-                    V[x + y * L].z = smooth * factor;
-                }
+        var uniforms = heightmapVariable.material.uniforms;
+        if (mouseMoved) {
+            raycaster.setFromCamera(mouseCoords, camera);
+            var intersects = raycaster.intersectObject(water);
+            if (intersects.length > 0) {
+                var point = intersects[0].point;
+                sphere.position.x = point.x;
+                sphere.position.y = point.y;
+                sphere.position.z = point.z;
+                uniforms.mousePos.value.set(point.x, point.z);
             }
-            t++;
-            water.geometry.verticesNeedUpdate = true;
+            else {
+                uniforms.mousePos.value.set(10000, 10000);
+            }
+            mouseMoved = false;
         }
-        */
-        if(noiseAnimation)
+        else {
+            uniforms.mousePos.value.set(10000, 10000);
+        }
+
+        gpuCompute.compute();
+        water.material.uniforms.ripplesMap.value =  gpuCompute.getCurrentRenderTarget( heightmapVariable ).texture;
+        if (noiseAnimation)
             waterShader.material.uniforms.time.value += 1.0 / 60.0;
         waterShader.render();
         requestAnimationFrame(render);
@@ -103,7 +311,6 @@
 
 
     }
-
     function start() {
         document.body.appendChild(renderer.domElement);
     }
@@ -141,6 +348,34 @@
         return skyBoxMaterial;
     }
 
+    function fillTexture(texture, max) {
+        var waterMaxHeight = max;
+        function noise(x, y, z) {
+            var multR = waterMaxHeight;
+            var mult = 0.025;
+            var r = 0;
+            for (var i = 0; i < 15; i++) {
+                r += multR * simplex.noise3d(x * mult, y * mult, z * mult);
+                multR *= 0.53 + 0.025 * i;
+                mult *= 1.25;
+            }
+            return r;
+        }
+        var pixels = texture.image.data;
+        var p = 0;
+        for (var j = 0; j < BOUNDS; j++) {
+            for (var i = 0; i < BOUNDS; i++) {
+                var x = i * 128 / 16;
+                var y = j * 128 / 16;
+                pixels[p + 0] = noise(x, y, 123.4);
+                pixels[p + 1] = 0;
+                pixels[p + 2] = 0;
+                pixels[p + 3] = 1;
+                p += 4;
+            }
+        }
+    }
+
 </script>
 <style>
     * {
@@ -149,7 +384,6 @@
 </style>
 <body onload="start()">
 </body>
-<body>
 
-</body>
+
 </html>
