@@ -1,15 +1,13 @@
 var size = 10,
     gravity = 2,
     attr = 0.01,
-    velFactor = 2,
     pressure = 0.5,
-    particleCount = 3000,
-    cloudsCount = 100;
+    particleCount = 1000;
 
-var BOUNDS = 5000;
+var BOUNDS = 1000;
 var WIDTH = 128;
 var systemDistance = 100;
-var noiseAnimation = true;
+var noiseAnimation = false;
 var simplex = new SimplexNoise();
 var mouseMoved = false;
 var mouseCoords = new THREE.Vector2();
@@ -63,13 +61,14 @@ water.position.y = 0;
 scene.add(water);
 
 //Heightmap
-gpuCompute = new GPUComputationRenderer(BOUNDS, BOUNDS, renderer);
-var heightmapTexture = gpuCompute.createTexture();
-var heightmapVariable = gpuCompute.addVariable("heightmap", document.getElementById('heightmapFragmentShader').textContent, heightmapTexture);
+gpuCompute = new GPUComputationRenderer(WIDTH, WIDTH, renderer);
+var heightmap0 = gpuCompute.createTexture();
+fillTexture(heightmap0,0);
+heightmapVariable = gpuCompute.addVariable("heightmap", document.getElementById('heightmapFragmentShader').textContent, heightmap0);
 gpuCompute.setVariableDependencies(heightmapVariable, [heightmapVariable]);
-heightmapVariable.material.uniforms.mousePos = {value: new THREE.Vector2(BOUNDS, BOUNDS)};
-heightmapVariable.material.uniforms.mouseSize = {value: 20.0};
-heightmapVariable.material.uniforms.viscosityConstant = {value: 0.03};
+heightmapVariable.material.uniforms.mousePos = {value: new THREE.Vector2(10000, 10000)};
+heightmapVariable.material.uniforms.mouseSize = {value: 10.0};
+heightmapVariable.material.uniforms.viscosityConstant = {value: 0.06};
 heightmapVariable.material.defines.BOUNDS = BOUNDS.toFixed(1);
 var error = gpuCompute.init();
 if (error !== null) {
@@ -78,7 +77,7 @@ if (error !== null) {
 
 
 //CubeMap
-var skyBoxMaterial = getSkyBoxMaterial('img/skyboxsun25degtest.jpg', 1024);
+var skyBoxMaterial = getSkyBoxMaterial('img/skyboxsun25degtest.png', 1024);
 var skyBox = new THREE.Mesh(
     new THREE.BoxGeometry(BOUNDS+1000, BOUNDS+1000, BOUNDS+1000),
     skyBoxMaterial
@@ -184,9 +183,6 @@ function render() {
 
     gpuCompute.compute();
     water.material.uniforms.ripplesMap.value =  gpuCompute.getCurrentRenderTarget( heightmapVariable ).texture;
-
-
-
     if(noiseAnimation)
         waterShader.material.uniforms.time.value += 1.0 / 60.0;
     waterShader.render();
@@ -250,6 +246,34 @@ function setMouseCoords(x, y) {
 }
 function onDocumentMouseMove(event) {
     setMouseCoords(event.clientX, event.clientY);
+}
+
+function fillTexture(texture, max) {
+    var waterMaxHeight = max;
+    function noise(x, y, z) {
+        var multR = waterMaxHeight;
+        var mult = 0.025;
+        var r = 0;
+        for (var i = 0; i < 15; i++) {
+            r += multR * simplex.noise3d(x * mult, y * mult, z * mult);
+            multR *= 0.53 + 0.025 * i;
+            mult *= 1.25;
+        }
+        return r;
+    }
+    var pixels = texture.image.data;
+    var p = 0;
+    for (var j = 0; j < BOUNDS; j++) {
+        for (var i = 0; i < BOUNDS; i++) {
+            var x = i * 128 / 16;
+            var y = j * 128 / 16;
+            pixels[p + 0] = noise(x, y, 123.4);
+            pixels[p + 1] = 0;
+            pixels[p + 2] = 0;
+            pixels[p + 3] = 1;
+            p += 4;
+        }
+    }
 }
 
 

@@ -102,9 +102,9 @@
 <script id="heightmapFragmentShader" type="x-shader/x-fragment">
 			#include <common>
 			uniform vec2 mousePos;
-			float mouseSize = 15.0;
+			float mouseSize = 5.0;
 			uniform float viscosityConstant;
-            float noise = 5.0;
+            float noise = 10.0;
 			#define deltaTime ( 1.0 / 60.0 )
 			#define GRAVITY_CONSTANT ( resolution.x * deltaTime * 10.0 )
 			void main()	{
@@ -134,13 +134,13 @@
     var mouseCoords = new THREE.Vector2();
     var raycaster = new THREE.Raycaster();
     var BOUNDS = 1000;
-    var WIDTH = 32;
+    var WIDTH = 64;
     var baseHeight = 10;
     var speed = 256;
     var xMove = 8;
     var yMove = 8;
     var factor = 20;
-    var waving = false;
+    var waving = true;
     var noiseAnimation = true;
     var output;
     var simplex = new SimplexNoise();
@@ -165,14 +165,14 @@
     } , false );
 
 
-    gpuCompute = new GPUComputationRenderer(32, 32, renderer);
+    gpuCompute = new GPUComputationRenderer(WIDTH, WIDTH, renderer);
     var heightmap0 = gpuCompute.createTexture();
     fillTexture(heightmap0,0);
     heightmapVariable = gpuCompute.addVariable("heightmap", document.getElementById('heightmapFragmentShader').textContent, heightmap0);
     gpuCompute.setVariableDependencies(heightmapVariable, [heightmapVariable]);
     heightmapVariable.material.uniforms.mousePos = {value: new THREE.Vector2(10000, 10000)};
-    heightmapVariable.material.uniforms.mouseSize = {value: 20.0};
-    heightmapVariable.material.uniforms.viscosityConstant = {value: 0.03};
+    heightmapVariable.material.uniforms.mouseSize = {value: 10.0};
+    heightmapVariable.material.uniforms.viscosityConstant = {value: 0.06};
     heightmapVariable.material.defines.BOUNDS = BOUNDS.toFixed(1);
 
     var error = gpuCompute.init();
@@ -227,7 +227,7 @@
 //    plane2.rotateX(-Math.PI/2)
 //    scene.add(plane2);
 
-    var spG = new THREE.SphereGeometry(10,10,10);
+    var spG = new THREE.SphereGeometry(2,10,10);
     var spM = new THREE.MeshPhongMaterial({color:0xff0000});
     var sphere = new THREE.Mesh(spG,spM);
     sphere.position.y = 10;
