@@ -4,10 +4,12 @@ var size = 10,
     pressure = 0.5,
     particleCount = 1000;
 
-var BOUNDS = 1000;
+opacity = 0.1;
+
+var BOUNDS = 500;
 var WIDTH = 128;
 var systemDistance = 100;
-var noiseAnimation = false;
+var noiseAnimation = true;
 var simplex = new SimplexNoise();
 var mouseMoved = false;
 var mouseCoords = new THREE.Vector2();
@@ -15,6 +17,7 @@ var raycaster = new THREE.Raycaster();
 var xSpread = 0.001;
 var ySpread = 0.001;
 var zSpread = 0.001;
+var center = {x:0,y:0};
 
 var width = window.innerWidth,
     height = window.innerHeight - 4;
@@ -67,7 +70,7 @@ fillTexture(heightmap0,0);
 heightmapVariable = gpuCompute.addVariable("heightmap", document.getElementById('heightmapFragmentShader').textContent, heightmap0);
 gpuCompute.setVariableDependencies(heightmapVariable, [heightmapVariable]);
 heightmapVariable.material.uniforms.mousePos = {value: new THREE.Vector2(10000, 10000)};
-heightmapVariable.material.uniforms.mouseSize = {value: 10.0};
+heightmapVariable.material.uniforms.mouseSize = {value: 2.0};
 heightmapVariable.material.uniforms.viscosityConstant = {value: 0.06};
 heightmapVariable.material.defines.BOUNDS = BOUNDS.toFixed(1);
 var error = gpuCompute.init();
@@ -84,6 +87,11 @@ var skyBox = new THREE.Mesh(
 );
 scene.add(skyBox);
 
+var spG = new THREE.SphereGeometry(2,10,10);
+var spM = new THREE.MeshPhongMaterial({color:0xff0000});
+var sphere = new THREE.Mesh(spG,spM);
+sphere.position.y = 10;
+scene.add(sphere);
 
 camera.position.x = -146;
 camera.position.y = 32;
@@ -100,7 +108,7 @@ var particles = new THREE.Geometry();
 var pMaterial = new THREE.PointsMaterial({
     color: 0x555555,
     size: size,
-    opacity: 0.05,
+    opacity: opacity,
     sizeAttenuation: true,
     map: texLoader.load("img/particle.png"),
     blending: THREE.AdditiveBlending,
@@ -143,8 +151,8 @@ function render() {
             if (elapsed - particle.birth > particle.waitTime) {
                 particle.waitTime = 0;
                 if (particle.y <= -systemDistance) {
-                    //center.x = (center.x + particle.x )/ 2;
-                    //center.z = (center.z + particle.z )/ 2;
+                    center.x = (center.x + particle.x )/ 2;
+                    center.z = (center.z + particle.z )/ 2;
                     if(Math.random()>0.2 && particle.bounced<3){
                         particle.bounced++;
                         particle.speed.y = Math.nrand(0.25,0.1);
@@ -165,21 +173,18 @@ function render() {
     particleSystem.geometry.verticesNeedUpdate = true;
     //Ripples
     var uniforms = heightmapVariable.material.uniforms;
-    if (mouseMoved) {
-        raycaster.setFromCamera(mouseCoords, camera);
-        var intersects = raycaster.intersectObject(water);
-        if (intersects.length > 0) {
-            var point = intersects[0].point;
-            uniforms.mousePos.value.set(point.x, point.z);
-        }
-        else {
-            uniforms.mousePos.value.set(10000, 10000);
-        }
-        mouseMoved = false;
-    }
-    else {
-        uniforms.mousePos.value.set(10000, 10000);
-    }
+        //TODO Remove raycaster
+        //raycaster.setFromCamera(mouseCoords, camera);
+        //var intersects = raycaster.intersectObject(water);
+        //if (intersects.length > 0) {
+        //    var point = intersects[0].point;
+            uniforms.mousePos.value.set(center.x, center.z);
+    sphere.position.x = center.x;
+    sphere.position.z = center.z;
+        //}
+        //else {
+        //    uniforms.mousePos.value.set(10000, 10000);
+        //}
 
     gpuCompute.compute();
     water.material.uniforms.ripplesMap.value =  gpuCompute.getCurrentRenderTarget( heightmapVariable ).texture;
@@ -239,7 +244,7 @@ function getSkyBoxMaterial(imageFile, size) {
 }
 
 //Bindings
-document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+//document.addEventListener( 'mousemove', onDocumentMouseMove, false );
 function setMouseCoords(x, y) {
     mouseCoords.set(( x / renderer.domElement.clientWidth ) * 2 - 1, -( y / renderer.domElement.clientHeight ) * 2 + 1);
     mouseMoved = true;
@@ -265,8 +270,8 @@ function fillTexture(texture, max) {
     var p = 0;
     for (var j = 0; j < BOUNDS; j++) {
         for (var i = 0; i < BOUNDS; i++) {
-            var x = i * 128 / 16;
-            var y = j * 128 / 16;
+            var x = i * WIDTH / 16;
+            var y = j * WIDTH / 16;
             pixels[p + 0] = noise(x, y, 123.4);
             pixels[p + 1] = 0;
             pixels[p + 2] = 0;
