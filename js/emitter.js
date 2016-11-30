@@ -1,8 +1,8 @@
-var size = 10,
+var size = 5,
     gravity = 2,
     attr = 0.01,
     pressure = 0.5,
-    particleCount = 1000;
+    particleCount = 10000;
 
 opacity = 0.1;
 
@@ -13,7 +13,6 @@ var noiseAnimation = true;
 var simplex = new SimplexNoise();
 var mouseMoved = false;
 var mouseCoords = new THREE.Vector2();
-var raycaster = new THREE.Raycaster();
 var xSpread = 0.001;
 var ySpread = 0.001;
 var zSpread = 0.001;
@@ -36,7 +35,7 @@ orbitControls.autoRotate = true;
 
 scene.add(new THREE.AmbientLight(0x444444));
 var light = new THREE.DirectionalLight(0xffffbb, 1);
-light.position.set(-4000, 3200, -5000);
+light.position.set(1100, 3200, 3000);
 scene.add(light);
 
 //Water Material
@@ -45,7 +44,7 @@ waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping;
 var waterShader = new THREE.Water(renderer, camera, scene, {
     textureWidth: 512,
     textureHeight: 512,
-    waterNormals: waterNormals,
+    //waterNormals: waterNormals,
     alpha: 0.9,
     factor: 20,
     sunDirection: light.position.clone().normalize(),
@@ -70,8 +69,8 @@ fillTexture(heightmap0,0);
 heightmapVariable = gpuCompute.addVariable("heightmap", document.getElementById('heightmapFragmentShader').textContent, heightmap0);
 gpuCompute.setVariableDependencies(heightmapVariable, [heightmapVariable]);
 heightmapVariable.material.uniforms.mousePos = {value: new THREE.Vector2(10000, 10000)};
-heightmapVariable.material.uniforms.mouseSize = {value: 2.0};
-heightmapVariable.material.uniforms.viscosityConstant = {value: 0.06};
+heightmapVariable.material.uniforms.mouseSize = {value: 5.0};
+heightmapVariable.material.uniforms.viscosityConstant = {value: 0.03};
 heightmapVariable.material.defines.BOUNDS = BOUNDS.toFixed(1);
 var error = gpuCompute.init();
 if (error !== null) {
@@ -87,11 +86,39 @@ var skyBox = new THREE.Mesh(
 );
 scene.add(skyBox);
 
-var spG = new THREE.SphereGeometry(2,10,10);
-var spM = new THREE.MeshPhongMaterial({color:0xff0000});
-var sphere = new THREE.Mesh(spG,spM);
-sphere.position.y = 10;
-scene.add(sphere);
+//var spG = new THREE.SphereGeometry(2,10,10);
+//var spM = new THREE.MeshPhongMaterial({color:0xff0000});
+//var sphere = new THREE.Mesh(spG,spM);
+//sphere.position.y = 10;
+//scene.add(sphere);
+var manneken;
+var mannekenNormals = new THREE.TextureLoader().load('img/bronze.jpg');
+var loader = new THREE.STLLoader();
+loader.load( 'models/m2.stl', function ( mannekenGeom ) {
+    var material = new THREE.MeshPhongMaterial( {
+        color: 0x98A195,
+        specular: 0x111111,
+        shininess: 0 }
+    );
+    manneken = new THREE.Mesh( mannekenGeom, material );
+    manneken.rotateX(-Math.PI/2);
+    scene.add( manneken );
+} );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 camera.position.x = -146;
 camera.position.y = 32;
@@ -120,13 +147,14 @@ var pMaterial = new THREE.PointsMaterial({
 var material = new THREE.MeshPhongMaterial({color: 0x3B970B, reflectivity:0.75, depthTest:true})
 
 //Tube
+/*
 var path = new THREE.CatmullRomCurve3( [
     new THREE.Vector3( 0, 100, -300 ),
     new THREE.Vector3( 0, systemDistance, 0 ),
 ] );
 var tube = new THREE.Mesh(new THREE.TubeGeometry(path,20,2,10,false), material);
 scene.add(tube);
-
+*/
 
 //Create particles
 for (var i = 0; i < particleCount; i++) {
@@ -173,18 +201,10 @@ function render() {
     particleSystem.geometry.verticesNeedUpdate = true;
     //Ripples
     var uniforms = heightmapVariable.material.uniforms;
-        //TODO Remove raycaster
-        //raycaster.setFromCamera(mouseCoords, camera);
-        //var intersects = raycaster.intersectObject(water);
-        //if (intersects.length > 0) {
-        //    var point = intersects[0].point;
-            uniforms.mousePos.value.set(center.x, center.z);
-    sphere.position.x = center.x;
-    sphere.position.z = center.z;
-        //}
-        //else {
-        //    uniforms.mousePos.value.set(10000, 10000);
-        //}
+    //TODO Beautify the names
+    var planeCenter = {x: center.x+particleSystem.position.x, z: center.z + particleSystem.position.z};
+    uniforms.mousePos.value.set(planeCenter.x, planeCenter.z);
+
 
     gpuCompute.compute();
     water.material.uniforms.ripplesMap.value =  gpuCompute.getCurrentRenderTarget( heightmapVariable ).texture;
