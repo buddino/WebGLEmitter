@@ -1,7 +1,7 @@
-var size = 5,
+var size = 2,
     gravity = 2,
     attr = 0.01,
-    pressure = 0.5,
+    pressure = 1.0,
     particleCount = 10000;
 
 opacity = 0.1;
@@ -16,7 +16,7 @@ var mouseCoords = new THREE.Vector2();
 var xSpread = 0.001;
 var ySpread = 0.001;
 var zSpread = 0.001;
-var center = {x:0,y:0};
+var center = {x: 0, y: 0};
 
 var width = window.innerWidth,
     height = window.innerHeight - 4;
@@ -24,8 +24,8 @@ var center = new THREE.Vector3(0, 0, 0);
 var acc = new THREE.Vector3(0, -0.981, 0);
 
 //Init
-var renderer = new THREE.WebGLRenderer();
-camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.5, 300000);
+renderer = new THREE.WebGLRenderer({autoClear: false, antialias: true});
+camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 300000);
 var scene = new THREE.Scene();
 var clock = new THREE.Clock();
 var texLoader = new THREE.TextureLoader();
@@ -44,7 +44,7 @@ waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping;
 var waterShader = new THREE.Water(renderer, camera, scene, {
     textureWidth: 512,
     textureHeight: 512,
-    //waterNormals: waterNormals,
+    waterNormals: waterNormals,
     alpha: 0.9,
     factor: 20,
     sunDirection: light.position.clone().normalize(),
@@ -65,7 +65,7 @@ scene.add(water);
 //Heightmap
 gpuCompute = new GPUComputationRenderer(WIDTH, WIDTH, renderer);
 var heightmap0 = gpuCompute.createTexture();
-fillTexture(heightmap0,0);
+//fillTexture(heightmap0, 10);
 heightmapVariable = gpuCompute.addVariable("heightmap", document.getElementById('heightmapFragmentShader').textContent, heightmap0);
 gpuCompute.setVariableDependencies(heightmapVariable, [heightmapVariable]);
 heightmapVariable.material.uniforms.mousePos = {value: new THREE.Vector2(10000, 10000)};
@@ -81,7 +81,7 @@ if (error !== null) {
 //CubeMap
 var skyBoxMaterial = getSkyBoxMaterial('img/skyboxsun25degtest.png', 1024);
 var skyBox = new THREE.Mesh(
-    new THREE.BoxGeometry(BOUNDS+1000, BOUNDS+1000, BOUNDS+1000),
+    new THREE.BoxGeometry(BOUNDS + 1000, BOUNDS + 1000, BOUNDS + 1000),
     skyBoxMaterial
 );
 scene.add(skyBox);
@@ -94,28 +94,18 @@ scene.add(skyBox);
 var manneken;
 var mannekenNormals = new THREE.TextureLoader().load('img/bronze.jpg');
 var loader = new THREE.STLLoader();
-loader.load( 'models/m2.stl', function ( mannekenGeom ) {
-    var material = new THREE.MeshPhongMaterial( {
-        color: 0x98A195,
-        specular: 0x111111,
-        shininess: 0 }
+loader.load('models/m2.stl', function (mannekenGeom) {
+    var material = new THREE.MeshPhongMaterial({
+            color: 0x98A195,
+            specular: 0x111111,
+            shininess: 0
+        }
     );
-    manneken = new THREE.Mesh( mannekenGeom, material );
-    manneken.rotateX(-Math.PI/2);
-    scene.add( manneken );
-} );
-
-
-
-
-
-
-
-
-
-
-
-
+    manneken = new THREE.Mesh(mannekenGeom, material);
+    manneken.rotateX(-Math.PI / 2);
+    manneken.position.y = 30;
+    scene.add(manneken);
+});
 
 
 
@@ -131,30 +121,16 @@ camera.rotation.z = -0.08;
 renderer.setSize(width, height);
 
 var particles = new THREE.Geometry();
-
 var pMaterial = new THREE.PointsMaterial({
     color: 0x555555,
     size: size,
     opacity: opacity,
     sizeAttenuation: true,
-    map: texLoader.load("img/particle.png"),
+    map: texLoader.load("img/particleT.png"),
     blending: THREE.AdditiveBlending,
     transparent: true,
-    depthTest: false
+    depthWrite: false
 });
-
-
-var material = new THREE.MeshPhongMaterial({color: 0x3B970B, reflectivity:0.75, depthTest:true})
-
-//Tube
-/*
-var path = new THREE.CatmullRomCurve3( [
-    new THREE.Vector3( 0, 100, -300 ),
-    new THREE.Vector3( 0, systemDistance, 0 ),
-] );
-var tube = new THREE.Mesh(new THREE.TubeGeometry(path,20,2,10,false), material);
-scene.add(tube);
-*/
 
 //Create particles
 for (var i = 0; i < particleCount; i++) {
@@ -163,11 +139,16 @@ for (var i = 0; i < particleCount; i++) {
     particles.vertices.push(particle);
 }
 
+
 var particleSystem = new THREE.Points(particles, pMaterial);
-particleSystem.position.setY(systemDistance);
 particleSystem.geometry.dynamic = true;
+particleSystem.sortParticles = true;
 scene.add(particleSystem);
+
+particleSystem.position.set(37,80,-10);
+
 render();
+
 
 
 function render() {
@@ -176,39 +157,50 @@ function render() {
     //Update particles
     for (var i = 0; i < particleCount; i++) {
         var particle = particles.vertices[i];
-            if (elapsed - particle.birth > particle.waitTime) {
-                particle.waitTime = 0;
-                if (particle.y <= -systemDistance) {
-                    center.x = (center.x + particle.x )/ 2;
-                    center.z = (center.z + particle.z )/ 2;
-                    if(Math.random()>0.2 && particle.bounced<3){
-                        particle.bounced++;
-                        particle.speed.y = Math.nrand(0.25,0.1);
-                        particle.speed.x = Math.nrand(0,0.1);
-                        particle.speed.z = Math.nrand(0.1,0.1);
-                    }
-                    else {
-                        resetParticle(particle);
-                    }
-                }
-                particle.speed.y += acc.y * delta * gravity;
-                particle.speed.x -= particle.speed.x * attr;
-                particle.speed.z -= particle.speed.z * attr;
-                //particle.speed.y -= particle.speed.y*attr+Math.random()/100-0.005;
-                particle.add(particle.speed);
+        if (elapsed - particle.birth > particle.waitTime) {
+            //New active particle
+            if(particle.waitTime!=-1){
+                particle.waitTime = -1;
+                particle.x = 0;
+                particle.y = 0;
+                particle.z = 0;
             }
+
+            if (particle.y <= -particleSystem.position.y) {
+                center.x = (center.x + particle.x ) / 2;
+                center.z = (center.z + particle.z ) / 2;
+                if (Math.random() > 0.2 && particle.bounced < 3) {
+                    particle.bounced++;
+                    particle.speed.y = Math.nrand(0.10, 0.05);
+                    particle.speed.x = Math.nrand(0, 0.05);
+                    particle.speed.z = Math.nrand(0.1, 0.05);
+                }
+                //If bounced enough or not selected for bouncing
+                else {
+                    resetParticle(particle);
+                }
+            }
+            //Update particle's paramenters
+            particle.speed.y += acc.y * delta * gravity;
+            particle.speed.x -= particle.speed.x * attr;
+            particle.speed.z -= particle.speed.z * attr;
+            //particle.speed.y -= particle.speed.y*attr+Math.random()/100-0.005;
+
+            //Update particle position (adding the speed vector)
+            particle.add(particle.speed);
+        }
     }
     particleSystem.geometry.verticesNeedUpdate = true;
     //Ripples
     var uniforms = heightmapVariable.material.uniforms;
     //TODO Beautify the names
-    var planeCenter = {x: center.x+particleSystem.position.x, z: center.z + particleSystem.position.z};
+    var planeCenter = {x: center.x + particleSystem.position.x, z: center.z + particleSystem.position.z};
     uniforms.mousePos.value.set(planeCenter.x, planeCenter.z);
 
 
     gpuCompute.compute();
-    water.material.uniforms.ripplesMap.value =  gpuCompute.getCurrentRenderTarget( heightmapVariable ).texture;
-    if(noiseAnimation)
+    water.material.uniforms.ripplesMap.value = gpuCompute.getCurrentRenderTarget(heightmapVariable).texture;
+    if (noiseAnimation)
         waterShader.material.uniforms.time.value += 1.0 / 60.0;
     waterShader.render();
     requestAnimationFrame(render);
@@ -217,12 +209,12 @@ function render() {
 
 function resetParticle(particle) {
     particle.bounced = 0;
-    particle.x = 0;
-    particle.y = 0;
-    particle.z = 0;
+    particle.x = 10000;
+    particle.y = 10000;
+    particle.z = 10000;
     particle.speed = new THREE.Vector3(Math.nrand(0, xSpread), Math.nrand(0, ySpread), Math.nrand(pressure, zSpread));
     particle.birth = clock.getElapsedTime();
-    particle.waitTime = Math.random()*2;
+    particle.waitTime = Math.random() * 2;
 }
 
 function start() {
@@ -264,7 +256,12 @@ function getSkyBoxMaterial(imageFile, size) {
 }
 
 //Bindings
-//document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+document.addEventListener('keydown', function (event) {
+    if (event.key == 's') {
+    }
+}, false);
+
+
 function setMouseCoords(x, y) {
     mouseCoords.set(( x / renderer.domElement.clientWidth ) * 2 - 1, -( y / renderer.domElement.clientHeight ) * 2 + 1);
     mouseMoved = true;
@@ -275,6 +272,7 @@ function onDocumentMouseMove(event) {
 
 function fillTexture(texture, max) {
     var waterMaxHeight = max;
+
     function noise(x, y, z) {
         var multR = waterMaxHeight;
         var mult = 0.025;
@@ -286,6 +284,7 @@ function fillTexture(texture, max) {
         }
         return r;
     }
+
     var pixels = texture.image.data;
     var p = 0;
     for (var j = 0; j < BOUNDS; j++) {
