@@ -8,7 +8,6 @@ opacity = 0.1;
 
 var BOUNDS = 500;
 var WIDTH = 128;
-var systemDistance = 100;
 var noiseAnimation = true;
 var simplex = new SimplexNoise();
 var mouseMoved = false;
@@ -42,10 +41,10 @@ scene.add(light);
 var waterNormals = new THREE.TextureLoader().load('img/waternormals.jpg');
 waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping;
 var waterShader = new THREE.Water(renderer, camera, scene, {
-    textureWidth: 512,
-    textureHeight: 512,
-    waterNormals: waterNormals,
-    alpha: 0.9,
+    textureWidth: 1024,
+    textureHeight: 1024,
+    waterNormals: waterNormals, //TODO Add switch to the GUI
+    //alpha: 0.9,
     factor: 20,
     sunDirection: light.position.clone().normalize(),
     sunColor: 0xffffaa,
@@ -94,7 +93,8 @@ scene.add(skyBox);
 var manneken;
 var mannekenNormals = new THREE.TextureLoader().load('img/bronze.jpg');
 var loader = new THREE.STLLoader();
-loader.load('models/m2.stl', function (mannekenGeom) {
+loader.load('models/simplified10k.stl', function (mannekenGeom) {
+    //TODO Smooth
     var material = new THREE.MeshPhongMaterial({
             color: 0x98A195,
             specular: 0x111111,
