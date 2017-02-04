@@ -4,64 +4,8 @@
     <meta charset="UTF-8">
     <title>Emitter 0.1a</title>
 </head>
-<script src='js/DAT.GUI.js'></script>
-<script>
-    var params = {
-        gravity:1,
-        attr:0.01,
-        pressure: 1,
-        xSpread: 0.001,
-        ySpread: 0.001,
-        zSpread: 0.001,
-        opacity: 0.05
-    };
+<script src='js/dat.gui.js'></script>
 
-    function loadGUI(){
-        console.info("Loaded");
-        var gui = new DAT.GUI({
-            height: (Object.keys(params).length-1) * 32 - 1
-        });
-        var gravityCtrl = gui.add(params, 'gravity',0.01,3,0.01);
-        var attrCtrl = gui.add(params, 'attr',0,0.1,0.001);
-        var pressureCtrl = gui.add(params, 'pressure',0,2,0.01);
-        var xSpreadCtrl = gui.add(params, 'xSpread',0,0.03,0.001);
-        var ySpreadCtrl = gui.add(params, 'ySpread',0,0.03,0.001);
-        var zSpreadCtrl = gui.add(params, 'zSpread',0,0.03,0.001);
-        var opacityCtrl = gui.add(params, 'opacity',0,0.3,0.0001);
-
-
-        gravityCtrl.onChange(function(value) {
-            gravity = value;
-        });
-
-        attrCtrl.onChange(function(value) {
-            attr = value;
-        });
-
-        pressureCtrl.onChange(function(value) {
-            pressure = value;
-        });
-
-        xSpreadCtrl.onChange(function(value){
-            xSpread = value;
-        })
-
-        ySpreadCtrl.onChange(function(value){
-            ySpread = value;
-        })
-
-        zSpreadCtrl.onChange(function(value){
-            zSpread = value;
-        })
-
-        opacityCtrl.onChange(function(value){
-            opacity = value;
-        })
-
-
-
-    }
-</script>
 <script src="js/three.js"></script>
 <script src="js/Mirror.js"></script>
 <script src="js/WaterShaderNoSimplex.js"></script>
@@ -71,10 +15,8 @@
 <script src="js/GPUComputationRenderer.js"></script>
 <script src="js/STLLoader.js"></script>
 <script id="smoothFragmentShader" type="x-shader/x-fragment">
-
 			uniform sampler2D texture;
 			void main()	{
-
 				vec2 cellSize = 1.0 / resolution.xy;
 				vec2 uv = gl_FragCoord.xy * cellSize;
 				// Computes the mean of texel and 4 neighbours
@@ -83,17 +25,14 @@
 				textureValue += texture2D( texture, uv + vec2( 0.0, - cellSize.y ) );
 				textureValue += texture2D( texture, uv + vec2( cellSize.x, 0.0 ) );
 				textureValue += texture2D( texture, uv + vec2( - cellSize.x, 0.0 ) );
-
 				textureValue /= 5.0;
-
 				gl_FragColor = textureValue;
-
 			}
 </script>
 <script id="heightmapFragmentShader" type="x-shader/x-fragment">
 			#include <common>
 			uniform vec2 mousePos;
-			float mouseSize = 5.0;
+			uniform float rippleSize;
 			uniform float viscosityConstant;
             float noise = 10.0;
 			#define deltaTime ( 1.0 / 60.0 )
@@ -112,12 +51,18 @@
 				heightmapValue.x += heightmapValue.y * deltaTime;
 				heightmapValue.x += sump * viscosityConstant;
 				// Mouse influence
-				float mousePhase = clamp( length( ( uv - vec2( 0.5 ) ) * BOUNDS - vec2( mousePos.x, - mousePos.y ) ) * PI / mouseSize, 0.0, PI );
+				float mousePhase = clamp( length( ( uv - vec2( 0.5 ) ) * BOUNDS - vec2( mousePos.x, - mousePos.y ) ) * PI / rippleSize, 0.0, PI );
 				heightmapValue.x += noise*cos( mousePhase ) + noise;
 				gl_FragColor = heightmapValue;
 			}
 </script>
+<script src="js/render.js"></script>
+<script src="js/skyBox.js"></script>
+<script src="js/init.js"></script>
+<script src="js/water.js"></script>
+<script src="js/manneken.js"></script>
 <script src="js/emitter.js"></script>
+<script src="js/GUI.js"></script>
 
 <style>
     * {
