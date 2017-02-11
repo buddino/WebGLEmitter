@@ -170,7 +170,7 @@
     fillTexture(heightmap0,0);
     heightmapVariable = gpuCompute.addVariable("heightmap", document.getElementById('heightmapFragmentShader').textContent, heightmap0);
     gpuCompute.setVariableDependencies(heightmapVariable, [heightmapVariable]);
-    heightmapVariable.material.uniforms.mousePos = {value: new THREE.Vector2(10000, 10000)};
+    heightmapVariable.material.uniforms.ripplePos = {value: new THREE.Vector2(10000, 10000)};
     heightmapVariable.material.uniforms.mouseSize = {value: 10.0};
     heightmapVariable.material.uniforms.viscosityConstant = {value: 0.06};
     heightmapVariable.material.defines.BOUNDS = BOUNDS.toFixed(1);
@@ -290,15 +290,15 @@
                 sphere.position.x = point.x;
                 sphere.position.y = point.y;
                 sphere.position.z = point.z;
-                uniforms.mousePos.value.set(point.x, point.z);
+                uniforms.ripplePos.value.set(point.x, point.z);
             }
             else {
-                uniforms.mousePos.value.set(10000, 10000);
+                uniforms.ripplePos.value.set(10000, 10000);
             }
             mouseMoved = false;
         }
         else {
-            uniforms.mousePos.value.set(10000, 10000);
+            uniforms.ripplePos.value.set(10000, 10000);
         }
 
         gpuCompute.compute();

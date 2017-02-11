@@ -6,24 +6,18 @@
 //sphere.position.y = 10;
 //scene.add(sphere);
 
-
-
-
-
 camera.position.x = -146;
 camera.position.y = 32;
 camera.position.z = 176;
 camera.rotation.x = -0.12;
 camera.rotation.y = -0.72;
 camera.rotation.z = -0.08;
-
-
 renderer.setSize(width, height);
 
-var particleSystem = createParticleSystem();
-particleSystem.position.set(37,80,-10);
+particleSystem = createParticleSystem();
 scene.add(particleSystem);
 render();
+
 function start() {
     document.body.appendChild(renderer.domElement);
     loadGUI();
@@ -52,6 +46,7 @@ function createParticleSystem(){
     var particleSystem = new THREE.Points(particles, pMaterial);
     particleSystem.geometry.dynamic = true;
     particleSystem.sortParticles = true;
+    particleSystem.position.set(37,80,-10);
     return particleSystem;
 }
 

@@ -33,7 +33,7 @@ loader.load('models/simplified10k.stl', function (mannekenGeom) {
     var mannekenMaterial = new THREE.MeshPhongMaterial({
             color: 0x98A195,
             specular: 0x111111,
-            shininess: 100,
+            shininess: 75,
             map: new THREE.TextureLoader().load('img/bronze.jpg')
         }
     );

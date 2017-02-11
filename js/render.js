@@ -1,5 +1,4 @@
 function render() {
-
     if (particlesAnimation) {
         var delta = clock.getDelta();
         var elapsed = clock.getElapsedTime();
@@ -44,7 +43,7 @@ function render() {
     //Ripples
     var uniforms = heightmapVariable.material.uniforms;
     var planeCenter = {x: center.x + particleSystem.position.x, z: center.z + particleSystem.position.z};
-    uniforms.mousePos.value.set(planeCenter.x, planeCenter.z);
+    uniforms.ripplePos.value.set(planeCenter.x, planeCenter.z);
 
 
     //Compute the noise

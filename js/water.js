@@ -4,7 +4,7 @@ waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping;
 var waterShader = new THREE.Water(renderer, camera, scene, {
     textureWidth: 1024,
     textureHeight: 1024,
-    waterNormals: waterNormals, //TODO Add switch to the GUI
+    waterNormals: waterNormals,
     //alpha: 0.9,
     factor: 20,
     sunDirection: light.position.clone().normalize(),
@@ -25,10 +25,9 @@ scene.add(water);
 //Heightmap
 gpuCompute = new GPUComputationRenderer(WIDTH, WIDTH, renderer);
 var heightmap0 = gpuCompute.createTexture();
-//fillTexture(heightmap0, 10);
 heightmapVariable = gpuCompute.addVariable("heightmap", document.getElementById('heightmapFragmentShader').textContent, heightmap0);
 gpuCompute.setVariableDependencies(heightmapVariable, [heightmapVariable]);
-heightmapVariable.material.uniforms.mousePos = {value: new THREE.Vector2(10000, 10000)};
+heightmapVariable.material.uniforms.ripplePos = {value: new THREE.Vector2(10000, 10000)};
 heightmapVariable.material.uniforms.rippleSize = {value: rippleSize};
 heightmapVariable.material.uniforms.viscosityConstant = {value: 0.03};
 heightmapVariable.material.defines.BOUNDS = BOUNDS.toFixed(1);
