@@ -65,7 +65,7 @@ THREE.ShaderLib[ 'water' ] = {
 		'	vec2 uv2 = uv / vec2( 8907.0, 9803.0 ) + vec2( time / 101.0, time / 97.0 );',
 		'	vec2 uv3 = uv / vec2( 1091.0, 1027.0 ) - vec2( time / 109.0, time / -113.0 );',
 		'	vec4 noise = texture2D( normalSampler, uv0 )+ texture2D( normalSampler, uv1 )+ texture2D( normalSampler, uv2 ) +texture2D( normalSampler, uv3 );',
-		'	return noise * 0.5 - 1.0;',
+		'	return noise*0.5-1.0;',
 		'}',
 
 		'void sunLight( const vec3 surfaceNormal, const vec3 eyeDirection, float shiny, float spec, float diffuse, inout vec3 diffuseColor, inout vec3 specularColor )',
@@ -102,7 +102,7 @@ THREE.ShaderLib[ 'water' ] = {
 		'	vec3 scatter = max( 0.0, dot( surfaceNormal, eyeDirection ) ) * waterColor;',
 		'	vec3 albedo = mix( sunColor * diffuseLight * 0.3 + scatter, ( vec3( 0.1 ) + reflectionSample * 0.9 + reflectionSample * specularLight ), reflectance );',
 		'	vec3 outgoingLight = albedo;',
-			//THREE.ShaderChunk[ "fog_fragment" ],
+			THREE.ShaderChunk[ "fog_fragment" ],
 		'	gl_FragColor = vec4( outgoingLight, alpha );',
 		'}'
 	].join( '\n' )
@@ -136,6 +136,7 @@ THREE.Water = function ( renderer, camera, scene, options ) {
 	this.waterColor = new THREE.Color( optionalParameter( options.waterColor, 0x7F7F7F ) );
 	this.eye = optionalParameter( options.eye, new THREE.Vector3( 0, 0, 0 ) );
 	this.distortionScale = optionalParameter( options.distortionScale, 20.0 );
+	this.noiseScale = optionalParameter( options.noiseScale, 0.5 );
 	this.side = optionalParameter( options.side, THREE.FrontSide );
 	this.fog = optionalParameter( options.fog, false );
 
@@ -189,6 +190,7 @@ THREE.Water = function ( renderer, camera, scene, options ) {
 	this.material.uniforms.sunDirection.value = this.sunDirection;
 	this.material.uniforms.distortionScale.value = this.distortionScale;
 	this.material.uniforms.ripplesMap.value = this.ripplesMap;
+	this.material.uniforms.noiseScale.value = this.noiseScale;
 
 	this.material.uniforms.eye.value = this.eye;
 

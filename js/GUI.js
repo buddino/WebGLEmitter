@@ -11,7 +11,7 @@ var params = {
     size: size,
     noiseAnimation:true,
     particleAnimation:true,
-    distortion:water.material.uniforms.distortionScale.value
+    distortion:distortionScale
 };
 
 function loadGUI() {
@@ -20,21 +20,22 @@ function loadGUI() {
     var gui = new dat.GUI();
     var noise = gui.addFolder("Noise");
     var ripples = gui.addFolder("Ripples");
-    var gravityCtrl = gui.add(params, 'gravity', 0.01, 5, 0.01);
-    var attrCtrl = gui.add(params, 'attr', 0, 0.1, 0.001);
-    var pressureCtrl = gui.add(params, 'pressure', 0, 2, 0.01);
-    var xSpreadCtrl = gui.add(params, 'xSpread', 0.001, 0.03, 0.001);
-    var ySpreadCtrl = gui.add(params, 'ySpread', 0.001, 0.03, 0.001);
-    var zSpreadCtrl = gui.add(params, 'zSpread', 0.001, 0.03, 0.001);
-    var opacityCtrl = gui.add(params, 'opacity', 0, 0.3, 0.01);
-    var sizeCtrl = gui.add(params, 'size', 1, 10, 0.1);
-    var animationCtrl = gui.add(params, 'particleAnimation');
+    var physics = gui.addFolder("Water");
+    var gravityCtrl = physics.add(params, 'gravity', 0.01, 5, 0.01);
+    var attrCtrl = physics.add(params, 'attr', 0, 0.1, 0.001);
+    var pressureCtrl = physics.add(params, 'pressure', 0, 2, 0.01);
+    var xSpreadCtrl = physics.add(params, 'xSpread', 0.001, 0.03, 0.001);
+    var ySpreadCtrl = physics.add(params, 'ySpread', 0.001, 0.03, 0.001);
+    var zSpreadCtrl = physics.add(params, 'zSpread', 0.001, 0.03, 0.001);
+    var opacityCtrl = physics.add(params, 'opacity', 0, 0.3, 0.01);
+    var sizeCtrl = physics.add(params, 'size', 1, 10, 0.1);
+    var animationCtrl = physics.add(params, 'particleAnimation');
 
     var noiseAnimationCtrl = noise.add(params, 'noiseAnimation');
     var distortionCtrl = noise.add(params, 'distortion', 0,30, 0.1);
 
     var rippleCtrl = ripples.add(params, 'ripples', 0,30, 0.1);
-    var viscovityCtrl = ripples.add(params, 'viscosity', 0,0.05, 0.001);
+    var viscosityCtrl = ripples.add(params, 'viscosity', 0,0.05, 0.001);
 
     gravityCtrl.onChange(function (value) {
         gravity = value;
@@ -81,8 +82,9 @@ function loadGUI() {
     rippleCtrl.onChange(function (value) {
         heightmapVariable.material.uniforms.rippleSize.value = value;
     })
-    viscovityCtrl.onChange(function (value) {
+    viscosityCtrl.onChange(function (value) {
         heightmapVariable.material.uniforms.viscosityConstant.value = value;
     })
+
 
 }

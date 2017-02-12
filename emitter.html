@@ -12,21 +12,8 @@
 <script src="js/util.js"></script>
 <script src="js/GPUComputationRenderer.js"></script>
 <script src="js/STLLoader.js"></script>
-<script id="smoothFragmentShader" type="x-shader/x-fragment">
-			uniform sampler2D texture;
-			void main()	{
-				vec2 cellSize = 1.0 / resolution.xy;
-				vec2 uv = gl_FragCoord.xy * cellSize;
-				vec4 textureValue = texture2D( texture, uv );
-				textureValue += texture2D( texture, uv + vec2( 0.0, cellSize.y ) );
-				textureValue += texture2D( texture, uv + vec2( 0.0, - cellSize.y ) );
-				textureValue += texture2D( texture, uv + vec2( cellSize.x, 0.0 ) );
-				textureValue += texture2D( texture, uv + vec2( - cellSize.x, 0.0 ) );
-				textureValue /= 5.0;
-				gl_FragColor = textureValue;
-			}
-</script>
 <script id="heightmapFragmentShader" type="x-shader/x-fragment">
+            //By takahirox
 			#include <common>
 			#define GRAVITY_CONSTANT ( resolution.x * deltaTime * 10.0 )
 			#define deltaTime ( 1.0 / 60.0 )
@@ -44,7 +31,7 @@
 				vec4 west = texture2D( heightmap, uv + vec2( - cellSize.x, 0.0 ) );
 				float sump = north.x + south.x + east.x + west.x - 4.0 * heightmapValue.x;
 				float accel = sump * GRAVITY_CONSTANT;
-				heightmapValue.y += accel;
+				heightmapValue.y += accel;                //velocity
 				heightmapValue.x += heightmapValue.y * deltaTime;
 				heightmapValue.x += sump * viscosityConstant;
 				// Particles influence
