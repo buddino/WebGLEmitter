@@ -6,14 +6,14 @@ loader.load('models/simplified10k.stl', function (mannekenGeom) {
     var attrib = mannekenGeom.getAttribute('position');
     var positions = attrib.array;
     var vertices = [];
-    for(var i = 0, n = positions.length; i < n; i += 3) {
+    for (var i = 0, n = positions.length; i < n; i += 3) {
         var x = positions[i];
         var y = positions[i + 1];
         var z = positions[i + 2];
         vertices.push(new THREE.Vector3(x, y, z));
     }
     var faces = [];
-    for(var i = 0, n = vertices.length; i < n; i += 3) {
+    for (var i = 0, n = vertices.length; i < n; i += 3) {
         faces.push(new THREE.Face3(i, i + 1, i + 2));
     }
     var geometry = new THREE.Geometry();
@@ -25,16 +25,14 @@ loader.load('models/simplified10k.stl', function (mannekenGeom) {
     geometry.mergeVertices()
     console.info("[Manneken]\tComputing vertex normals");
     geometry.computeVertexNormals();
-    //Convert it bak to a buffer geometry for a better efficiency
+    //Convert it back to a buffer geometry for a better efficiency
     mannekenGeom.fromGeometry(geometry);
-    geometry.shading = THREE.SmoothShading;
     //////
-
     var mannekenMaterial = new THREE.MeshPhongMaterial({
             color: 0x98A195,
-            specular: 0x111111,
-            shininess: 75,
-            map: new THREE.TextureLoader().load('img/bronze.jpg')
+            specular: 0x553333,
+            shininess: 30,
+            map: THREE.ImageUtils.loadTexture('img/bronze.jpg')
         }
     );
 
